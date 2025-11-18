@@ -1,0 +1,123 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { PlanStatus } from '../../common/enums/plan.enum';
+import { UsersService } from '../users/users.service';
+import { User } from '../users/entities/user.entity';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async register(dto: RegisterDto) {
+    const passwordHash = await this.hashPassword(dto.password);
+    const user = await this.usersService.createUser({
+      name: dto.name,
+      email: dto.email,
+      passwordHash,
+      plan: dto.plan,
+    });
+
+    const tokens = await this.generateTokens(user);
+    return { user: this.presentUser(user), tokens };
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isValid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    await this.usersService.recordLogin(user.id);
+    const tokens = await this.generateTokens(user);
+    return { user: this.presentUser(user), tokens };
+  }
+
+  async refreshToken(dto: RefreshTokenDto) {
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(
+        dto.refreshToken,
+        {
+          secret: this.configService.get<string>(
+            'JWT_REFRESH_SECRET',
+            'supersecretrefresh',
+          ),
+        },
+      );
+      const user = await this.usersService.findById(payload.sub);
+      const tokens = await this.generateTokens(user);
+      return { user: this.presentUser(user), tokens };
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async getProfile(currentUser: JwtPayload) {
+    const user = await this.usersService.findById(currentUser.sub);
+    return this.presentUser(user);
+  }
+
+  private async hashPassword(plain: string) {
+    const saltRounds = parseInt(
+      this.configService.get<string>('BCRYPT_SALT_ROUNDS', '10'),
+      10,
+    );
+    return bcrypt.hash(plain, saltRounds);
+  }
+
+  private async generateTokens(user: User) {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      plan: user.plan,
+      planStatus: user.planStatus ?? PlanStatus.PENDING,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>(
+        'JWT_ACCESS_SECRET',
+        'supersecret',
+      ),
+      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES', '1h'),
+    });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>(
+        'JWT_REFRESH_SECRET',
+        'supersecretrefresh',
+      ),
+      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES', '7d'),
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  private presentUser(user: User) {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      plan: user.plan,
+      planStatus: user.planStatus,
+      planStartDate: user.planStartDate,
+      metrics: user.metrics,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+    };
+  }
+}
