@@ -9,7 +9,7 @@ import {
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { type JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { ResultsService } from './results.service';
 
 @UseGuards(JwtAuthGuard)

@@ -4,6 +4,7 @@ import { QuestionType } from '../../../common/enums/exam.enum';
 import { Exam } from './exam.entity';
 import { QuestionOption } from './question-option.entity';
 import { EssaySupportingText } from './supporting-text.entity';
+import { QuestionComment } from '../../comments/entities/question-comment.entity';
 
 @Entity('questions')
 export class Question extends BaseEntity {
@@ -50,4 +51,7 @@ export class Question extends BaseEntity {
     cascade: true,
   })
   supportingTexts: EssaySupportingText[];
+
+  @OneToMany(() => QuestionComment, (comment) => comment.question)
+  comments: QuestionComment[];
 }

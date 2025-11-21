@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { AttemptsModule } from './modules/attempts/attempts.module';
 import { ResultsModule } from './modules/results/results.module';
+import { CommentsModule } from './modules/comments/comments.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ResultsModule } from './modules/results/results.module';
     ExamsModule,
     AttemptsModule,
     ResultsModule,
+    CommentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

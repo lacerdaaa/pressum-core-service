@@ -2,7 +2,9 @@ import { Column, Entity, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { PlanStatus, UserPlan } from '../../../common/enums/plan.enum';
 import { Attempt } from '../../attempts/entities/attempt.entity';
-import { UserMetrics } from '../interfaces/user-metrics.interface';
+import { QuestionComment } from '../../comments/entities/question-comment.entity';
+import { CommentReply } from '../../comments/entities/comment-reply.entity';
+import { type UserMetrics } from '../interfaces/user-metrics.interface';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -32,4 +34,10 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Attempt, (attempt) => attempt.user)
   attempts: Attempt[];
+
+  @OneToMany(() => QuestionComment, (comment) => comment.user)
+  comments: QuestionComment[];
+
+  @OneToMany(() => CommentReply, (reply) => reply.user)
+  replies: CommentReply[];
 }

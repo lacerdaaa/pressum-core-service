@@ -1,7 +1,13 @@
-import  { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get, Param,
+  Patch, Post, Query, UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { type JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { FilterExamsDto } from './dto/filter-exams.dto';
