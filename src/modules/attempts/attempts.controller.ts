@@ -21,7 +21,7 @@ export class AttemptsController {
   constructor(private readonly attemptsService: AttemptsService) {}
 
   @UseGuards(JwtAuthGuard)
-  @Post('simulados/:examId/attempts')
+  @Post('exams/:examId/attempts')
   startAttempt(
     @Param('examId') examId: string,
     @CurrentUser() user: JwtPayload,

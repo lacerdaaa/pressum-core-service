@@ -14,7 +14,7 @@ import { FilterExamsDto } from './dto/filter-exams.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { ExamsService } from './exams.service';
 
-@Controller('simulados')
+@Controller('exams')
 export class ExamsController {
   constructor(private readonly examsService: ExamsService) { }
 
