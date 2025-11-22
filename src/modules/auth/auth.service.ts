@@ -11,6 +11,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UserMetrics } from '../users/interfaces/user-metrics.interface';
+import { Subscription } from '../billing/entities/subscription.entity';
 
 type PresentedUser = {
   id: string;
@@ -24,6 +25,9 @@ type PresentedUser = {
   metrics?: UserMetrics | null;
   lastLoginAt?: Date | null;
   createdAt?: Date | null;
+  subscription?: Pick<Subscription, 'id' | 'status' | 'startedAt' | 'endsAt'> & {
+    plan?: { code: UserPlan; priceCents?: number; currency?: string } | null;
+  } | null;
 };
 
 @Injectable()

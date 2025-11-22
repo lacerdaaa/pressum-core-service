@@ -4,7 +4,7 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { Plan } from './entities/plan.entity';
 import { Subscription } from './entities/subscription.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
@@ -193,31 +193,51 @@ export class BillingService {
     };
   }
 
-  async handleWebhook(signature: string | undefined, rawBody: Buffer, payload: unknown) {
+  async handleWebhook(
+    signature: string | undefined,
+    rawBody: Buffer,
+    payload: unknown,
+    secretFromRequest?: string,
+  ) {
     if (!this.client) {
       throw new BadRequestException('Billing client not configured');
     }
 
+    const secret = process.env.ABACATE_WEBHOOK_SECRET ?? process.env.ABACATEPAY_API_KEY;
+    const publicKey = process.env.ABACATEPAY_PUBLIC_KEY ?? secret;
+
+    // 1) valida secret simples (query/header)
+    if (secretFromRequest && secret && secretFromRequest !== secret) {
+      this.logger.warn('Invalid webhook secret (query/header)');
+      throw new BadRequestException('Invalid signature');
+    }
+
+    // 2) valida assinatura HMAC (base64) usando chave pública
     if (!signature) {
       this.logger.warn('Missing webhook signature header');
       throw new BadRequestException('Missing signature');
     }
 
-    const secret = process.env.ABACATE_WEBHOOK_SECRET ?? process.env.ABACATEPAY_API_KEY;
-    const computed = createHmac('sha256', secret ?? '').update(rawBody).digest('hex');
-
-    if (computed !== signature) {
+    const expected = createHmac('sha256', publicKey ?? '').update(rawBody).digest('base64');
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
       this.logger.warn('Invalid webhook signature');
       throw new BadRequestException('Invalid signature');
     }
 
     const parsedPayload = payload as {
-      id?: string;
+      id?: string; // event id
       status?: string;
-      data?: { id?: string; status?: string };
+      data?: {
+        id?: string;
+        status?: string;
+        billing?: { id?: string; status?: string };
+      };
     };
 
-    const gatewayRef: string | undefined = parsedPayload.id ?? parsedPayload.data?.id;
+    const gatewayRef: string | undefined =
+      parsedPayload.data?.billing?.id ?? parsedPayload.data?.id ?? parsedPayload.id;
     if (!gatewayRef) {
       this.logger.warn('Webhook without gateway reference');
       return { ok: true };
@@ -233,10 +253,14 @@ export class BillingService {
       return { ok: true };
     }
 
-    const status: string = parsedPayload.status ?? parsedPayload.data?.status ?? '';
+    const status: string =
+      parsedPayload.data?.billing?.status ??
+      parsedPayload.data?.status ??
+      parsedPayload.status ??
+      '';
     const normalized = status ? status.toUpperCase() : '';
 
-    if (normalized === 'PAID') {
+    if (normalized === 'PAID' || normalized === 'ACTIVE') {
       tx.status = PaymentStatus.PAID;
       tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);

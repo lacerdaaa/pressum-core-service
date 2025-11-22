@@ -1,4 +1,4 @@
-import {  Body,  Controller,  Headers,  HttpCode,  Param,  Post,  Get,  Req,  Logger,} from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Param, Post, Get, Req, Logger } from '@nestjs/common';
 import { Request } from 'express';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { BillingService } from './billing.service';
@@ -23,7 +23,22 @@ export class BillingController {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.logger.debug({ headers, query: req.query, body: req.body }, 'Webhook debug');
     const rawBody = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
-    return this.billingService.handleWebhook(headers['x-abacatepay-signature'], rawBody, req.body);
+    const signature =
+      headers['x-abacatepay-signature'] ||
+      headers['x-webhook-signature'] ||
+      headers['X-WebHook-Signature'] ||
+      headers['X-Webhook-Signature'];
+    const querySecret =
+      typeof req.query?.webhookSecret === 'string' ? req.query.webhookSecret : undefined;
+    const headerSecret =
+      headers['x-webhook-secret'] || headers['X-WebHook-Secret'] || undefined;
+
+    return this.billingService.handleWebhook(
+      signature,
+      rawBody,
+      req.body,
+      headerSecret ?? querySecret,
+    );
   }
   @Get('/users/:userId/subscription')
   async getSubscription(@Param('userId') userId: string) {

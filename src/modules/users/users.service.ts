@@ -131,6 +131,13 @@ export class UsersService {
     planStatus: PlanStatus;
     planStartDate?: Date | null;
     planEndDate?: Date | null;
+    subscription?: {
+      id?: string;
+      status?: SubscriptionStatus;
+      startedAt?: Date | null;
+      endsAt?: Date | null;
+      plan?: { code: UserPlan; priceCents?: number; currency?: string } | null;
+    } | null;
   }> {
     const activeSubscription = await this.subscriptionsRepository.findOne({
       where: {
@@ -147,6 +154,19 @@ export class UsersService {
         planStatus: PlanStatus.ACTIVE,
         planStartDate: activeSubscription.startedAt ?? new Date(),
         planEndDate: activeSubscription.endsAt ?? null,
+        subscription: {
+          id: activeSubscription.id,
+          status: activeSubscription.status,
+          startedAt: activeSubscription.startedAt ?? null,
+          endsAt: activeSubscription.endsAt ?? null,
+          plan: activeSubscription.plan
+            ? {
+                code: activeSubscription.plan.code as UserPlan,
+                priceCents: activeSubscription.plan.priceCents,
+                currency: activeSubscription.plan.currency,
+              }
+            : null,
+        },
       };
     }
 
@@ -157,6 +177,7 @@ export class UsersService {
       planStatus: user.planStatus ?? PlanStatus.PENDING,
       planStartDate: user.planStartDate ?? null,
       planEndDate: user.planEndDate ?? null,
+      subscription: null,
     };
   }
 }
