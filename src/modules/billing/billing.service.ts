@@ -9,25 +9,19 @@ import { User } from '../users/entities/user.entity';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { PaymentMethod, PaymentStatus, SubscriptionStatus } from '../../common/enums/billing.enum';
 import { PlanStatus, UserPlan } from '../../common/enums/plan.enum';
+import AbacatePay from 'abacatepay-nodejs-sdk';
+import type {
+  CreateBillingData,
+  CreateBillingResponse,
+  CreateCustomerResponse,
+  IBilling,
+} from 'abacatepay-nodejs-sdk/dist/types';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { AbacatePay } = require('abacatepay-nodejs-sdk');
-
-type BillingResponse = {
-  id?: string;
-  url?: string;
-  pixCode?: string;
-  status?: string;
-  data?: {
-    id?: string;
-    url?: string;
-    pixCode?: string;
-  };
-};
+type IBillingWithPix = IBilling & { pixCode?: string };
 
 @Injectable()
 export class BillingService {
-  private readonly client: any;
+  private readonly client: ReturnType<typeof AbacatePay> | null;
   private readonly logger = new Logger(BillingService.name);
 
   constructor(
@@ -43,9 +37,7 @@ export class BillingService {
       this.logger.warn('ABACATEPAY_API_KEY not set; billing client will be disabled');
       this.client = null;
     } else {
-      this.client = new AbacatePay(apiKey, {
-        baseURL: 'https://api.abacatepay.com/v1',
-      });
+      this.client = AbacatePay(apiKey);
     }
   }
 
@@ -78,24 +70,32 @@ export class BillingService {
     });
     await this.subscriptionRepo.save(subscription);
 
-    const billingPayload = {
+    const billingPayload: CreateBillingData = {
       frequency: 'MULTIPLE_PAYMENTS',
       methods: ['PIX'],
       products: [
         {
           externalId: plan.code,
           name: plan.name,
-          description: plan.description,
+          description: plan.description ?? '',
           quantity: 1,
           price: plan.priceCents,
         },
       ],
-      returnUrl: dto.returnUrl,
-      completionUrl: dto.completionUrl,
+      returnUrl: dto.returnUrl ?? '',
+      completionUrl: dto.completionUrl ?? '',
+      customer: {
+        name: user.name,
+        email: user.email,
+        taxId: dto.taxId,
+      },
     };
 
-    const response: BillingResponse = await this.client.billing.create(billingPayload);
-    const billingData = response.data ?? response;
+    const response: CreateBillingResponse = await this.client.billing.create(billingPayload);
+    if (response.error || !response.data) {
+      throw new BadRequestException(response.error ?? 'Failed to create billing');
+    }
+    const billingData = response.data;
 
     const tx = this.txRepo.create({
       amountCents: plan.priceCents,
@@ -111,15 +111,17 @@ export class BillingService {
     });
     await this.txRepo.save(tx);
 
+    const maybePix = (billingData as IBillingWithPix)?.pixCode;
+
     return {
       checkoutUrl: billingData.url,
-      pixCode: (billingData as any).pixCode,
+      pixCode: maybePix,
       transactionId: tx.id,
       status: tx.status,
     };
   }
 
-  async handleWebhook(signature: string | undefined, rawBody: Buffer, payload: any) {
+  async handleWebhook(signature: string | undefined, rawBody: Buffer, payload: unknown) {
     if (!this.client) {
       throw new BadRequestException('Billing client not configured');
     }
@@ -137,7 +139,13 @@ export class BillingService {
       throw new BadRequestException('Invalid signature');
     }
 
-    const gatewayRef: string | undefined = payload?.id ?? payload?.data?.id;
+    const parsedPayload = payload as {
+      id?: string;
+      status?: string;
+      data?: { id?: string; status?: string };
+    };
+
+    const gatewayRef: string | undefined = parsedPayload.id ?? parsedPayload.data?.id;
     if (!gatewayRef) {
       this.logger.warn('Webhook without gateway reference');
       return { ok: true };
@@ -153,12 +161,12 @@ export class BillingService {
       return { ok: true };
     }
 
-    const status: string = payload?.status ?? payload?.data?.status ?? '';
-    const normalized = status?.toUpperCase();
+    const status: string = parsedPayload.status ?? parsedPayload.data?.status ?? '';
+    const normalized = status ? status.toUpperCase() : '';
 
     if (normalized === 'PAID') {
       tx.status = PaymentStatus.PAID;
-      tx.rawPayload = payload;
+      tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);
 
       if (tx.subscription) {
@@ -178,7 +186,7 @@ export class BillingService {
       }
     } else if (normalized === 'EXPIRED' || normalized === 'CANCELLED') {
       tx.status = PaymentStatus.FAILED;
-      tx.rawPayload = payload;
+      tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);
 
       if (tx.subscription) {
@@ -189,7 +197,7 @@ export class BillingService {
       }
     } else if (normalized === 'REFUNDED') {
       tx.status = PaymentStatus.REFUNDED;
-      tx.rawPayload = payload;
+      tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);
 
       if (tx.subscription) {
@@ -199,7 +207,7 @@ export class BillingService {
       }
     } else {
       // PENDING or unknown
-      tx.rawPayload = payload;
+      tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);
     }
 
@@ -209,18 +217,17 @@ export class BillingService {
   private async ensureCustomer(user: User, taxId: string): Promise<string> {
     if (user.abacateCustomerId) return user.abacateCustomerId;
 
-    const customer = await this.client.customer.create({
+    const customer: CreateCustomerResponse = await this.client!.customer.create({
       name: user.name,
       email: user.email,
       taxId,
     });
 
-    const customerData = customer?.data ?? customer;
-    const customerId = customerData?.id;
-    if (!customerId) {
-      throw new BadRequestException('Failed to create customer at AbacatePay');
+    if (customer.error || !customer.data?.id) {
+      throw new BadRequestException(customer.error ?? 'Failed to create customer at AbacatePay');
     }
 
+    const customerId = customer.data.id;
     user.abacateCustomerId = customerId;
     await this.userRepo.save(user);
     return customerId;
