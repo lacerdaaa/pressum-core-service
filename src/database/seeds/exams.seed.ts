@@ -27,7 +27,7 @@ type SeedQuestion = {
   }>;
 };
 
-const simuladosSeedData: Array<{
+const examsSeedData: Array<{
   exam: {
     title: string;
     description: string;
@@ -246,7 +246,7 @@ const simuladosSeedData: Array<{
     questions: [
       {
         type: QuestionType.ESSAY,
-        text: 'A partir da leitura dos textos motivadores seguintes e com base nos conhecimentos construídos ao longo de sua formação, redija um texto dissertativo-argumentativo na modalidade escrita formal da língua portuguesa sobre o tema "O impacto da tecnologia nas relações humanas contemporâneas".',
+        text: 'A partir da leitura dos textos motivadores seguintes e com base nos conhecimentos construídos ao longo de sua formação, redija um texto dissertativo-argumentativo na modalidade escrita formal da língua portuguesa sobre o tema \"O impacto da tecnologia nas relações humanas contemporâneas\".',
         area: 'Redação',
         essayTopic: 'O impacto da tecnologia nas relações humanas contemporâneas',
         essayGuidelines:
@@ -267,7 +267,7 @@ const simuladosSeedData: Array<{
           {
             title: 'Texto III',
             content:
-              '"À medida que nos tornamos mais conectados digitalmente, corremos o risco de nos tornarmos mais desconectados emocionalmente. A tecnologia deve ser uma ponte para relações mais profundas, não um substituto delas."',
+              '\"À medida que nos tornamos mais conectados digitalmente, corremos o risco de nos tornarmos mais desconectados emocionalmente. A tecnologia deve ser uma ponte para relações mais profundas, não um substituto delas.\"',
             source: 'SILVA, Maria. O paradoxo digital. 2022.',
           },
         ],
@@ -276,7 +276,7 @@ const simuladosSeedData: Array<{
   },
 ];
 
-export async function seedSimulados(dataSource: DataSource) {
+export async function seedExams(dataSource: DataSource) {
   const examsRepository = dataSource.getRepository(Exam);
   const questionsRepository = dataSource.getRepository(Question);
   const optionsRepository = dataSource.getRepository(QuestionOption);
@@ -286,11 +286,11 @@ export async function seedSimulados(dataSource: DataSource) {
   const existing = await examsRepository.count();
   if (existing > 0) {
     // eslint-disable-next-line no-console
-    console.log('Skipping simulado seed: exams already exist');
+    console.log('Skipping exam seed: exams already exist');
     return;
   }
 
-  for (const item of simuladosSeedData) {
+  for (const item of examsSeedData) {
     const exam = examsRepository.create({
       ...item.exam,
       hasEssay: item.exam.hasEssay ?? false,
@@ -336,5 +336,5 @@ export async function seedSimulados(dataSource: DataSource) {
   }
 
   // eslint-disable-next-line no-console
-  console.log('Seeded simulados');
+  console.log('Seeded exams');
 }

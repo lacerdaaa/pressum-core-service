@@ -6,12 +6,15 @@ import {
   Post,
   Body,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { type JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
+import { UpdateReplyDto } from './dto/update-reply.dto';
 import { CommentsService } from './comments.service';
 
 @UseGuards(JwtAuthGuard)
@@ -56,5 +59,23 @@ export class CommentsController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.commentsService.deleteReply(replyId, user.sub);
+  }
+
+  @Patch('comments/:commentId')
+  updateComment(
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateCommentDto,
+  ) {
+    return this.commentsService.updateComment(commentId, user.sub, dto.text);
+  }
+
+  @Patch('replies/:replyId')
+  updateReply(
+    @Param('replyId') replyId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateReplyDto,
+  ) {
+    return this.commentsService.updateReply(replyId, user.sub, dto.text);
   }
 }

@@ -130,4 +130,40 @@ export class CommentsService {
     await this.repliesRepository.remove(reply);
     return { deleted: true };
   }
+
+  async updateComment(commentId: string, userId: string, text: string) {
+    const comment = await this.commentsRepository.findOne({
+      where: { id: commentId },
+      relations: ['user'],
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    if (comment.user.id !== userId) {
+      throw new ForbiddenException('You can only edit your own comments');
+    }
+
+    comment.text = text;
+    return this.commentsRepository.save(comment);
+  }
+
+  async updateReply(replyId: string, userId: string, text: string) {
+    const reply = await this.repliesRepository.findOne({
+      where: { id: replyId },
+      relations: ['user'],
+    });
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.user.id !== userId) {
+      throw new ForbiddenException('You can only edit your own replies');
+    }
+
+    reply.text = text;
+    return this.repliesRepository.save(reply);
+  }
 }

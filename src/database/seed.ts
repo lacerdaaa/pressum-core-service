@@ -1,10 +1,10 @@
 import { AppDataSource } from './data-source';
-import { seedSimulados } from './seeds/simulados.seed';
+import { seedExams } from './seeds/exams.seed';
 
 async function run() {
   const ds = await AppDataSource.initialize();
   try {
-    await seedSimulados(ds);
+    await seedExams(ds);
   } finally {
     await ds.destroy();
   }
