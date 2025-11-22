@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PlanStatus } from '../../common/enums/plan.enum';
+import { UserRole } from '../../common/enums/role.enum';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
 import { type JwtPayload } from './interfaces/jwt-payload.interface';
@@ -86,6 +87,7 @@ export class AuthService {
       name: user.name,
       plan: user.plan,
       planStatus: user.planStatus ?? PlanStatus.PENDING,
+      role: user.role ?? UserRole.USER,
     };
 
     const accessExpires =
@@ -122,6 +124,7 @@ export class AuthService {
       plan: user.plan,
       planStatus: user.planStatus,
       planStartDate: user.planStartDate,
+      role: user.role ?? UserRole.USER,
       metrics: user.metrics,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,

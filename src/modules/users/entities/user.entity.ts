@@ -1,6 +1,7 @@
 import { Column, Entity, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { PlanStatus, UserPlan } from '../../../common/enums/plan.enum';
+import { UserRole } from '../../../common/enums/role.enum';
 import { Attempt } from '../../attempts/entities/attempt.entity';
 import { QuestionComment } from '../../comments/entities/question-comment.entity';
 import { CommentReply } from '../../comments/entities/comment-reply.entity';
@@ -24,6 +25,9 @@ export class User extends BaseEntity {
 
   @Column({ type: 'enum', enum: PlanStatus, default: PlanStatus.PENDING })
   planStatus: PlanStatus;
+
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role: UserRole;
 
   @Column({ type: 'timestamptz', nullable: true })
   planStartDate?: Date | null;

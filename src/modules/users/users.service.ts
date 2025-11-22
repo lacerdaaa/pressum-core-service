@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlanStatus, UserPlan } from '../../common/enums/plan.enum';
+import { UserRole } from '../../common/enums/role.enum';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserPlanDto } from './dto/update-user-plan.dto';
@@ -24,6 +25,7 @@ export class UsersService {
     passwordHash: string;
     plan?: UserPlan;
     planStatus?: PlanStatus;
+    role?: UserRole;
   }): Promise<User> {
     const existing = await this.usersRepository.findOne({
       where: { email: payload.email },
@@ -41,6 +43,7 @@ export class UsersService {
       planStartDate:
         payload.planStatus === PlanStatus.ACTIVE ? new Date() : null,
       metrics: this.getDefaultMetrics(),
+      role: payload.role ?? UserRole.USER,
     });
 
     return this.usersRepository.save(user);
