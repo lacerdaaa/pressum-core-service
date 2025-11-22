@@ -103,6 +103,7 @@ export class AuthService {
       name: user.name,
       plan: user.plan,
       planStatus: user.planStatus ?? PlanStatus.PENDING,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       role: user.role ?? UserRole.USER,
     };
 
@@ -140,7 +141,7 @@ export class AuthService {
       planEndDate?: Date | null;
     },
   ): PresentedUser {
-    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-type-assertion */
+     
     return {
       id: user.id,
       name: user.name,
@@ -154,6 +155,5 @@ export class AuthService {
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
     };
-    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-type-assertion */
   }
 }
