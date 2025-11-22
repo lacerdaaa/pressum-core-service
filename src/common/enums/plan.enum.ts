@@ -8,4 +8,5 @@ export enum PlanStatus {
   PENDING = 'pending',
   ACTIVE = 'active',
   CANCELED = 'canceled',
+  EXPIRED = 'expired',
 }

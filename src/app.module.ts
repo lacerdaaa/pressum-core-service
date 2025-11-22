@@ -9,6 +9,7 @@ import { ExamsModule } from './modules/exams/exams.module';
 import { AttemptsModule } from './modules/attempts/attempts.module';
 import { ResultsModule } from './modules/results/results.module';
 import { CommentsModule } from './modules/comments/comments.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { CommentsModule } from './modules/comments/comments.module';
     AttemptsModule,
     ResultsModule,
     CommentsModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

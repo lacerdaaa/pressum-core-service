@@ -5,6 +5,8 @@ import { Attempt } from '../../attempts/entities/attempt.entity';
 import { QuestionComment } from '../../comments/entities/question-comment.entity';
 import { CommentReply } from '../../comments/entities/comment-reply.entity';
 import { type UserMetrics } from '../interfaces/user-metrics.interface';
+import { Subscription } from '../../billing/entities/subscription.entity';
+import { PaymentTransaction } from '../../billing/entities/payment-transaction.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -27,6 +29,12 @@ export class User extends BaseEntity {
   planStartDate?: Date | null;
 
   @Column({ type: 'timestamptz', nullable: true })
+  planEndDate?: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  abacateCustomerId?: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt?: Date | null;
 
   @Column({ type: 'jsonb', nullable: true })
@@ -40,4 +48,10 @@ export class User extends BaseEntity {
 
   @OneToMany(() => CommentReply, (reply) => reply.user)
   replies: CommentReply[];
+
+  @OneToMany(() => Subscription, (subscription) => subscription.user)
+  subscriptions: Subscription[];
+
+  @OneToMany(() => PaymentTransaction, (transaction) => transaction.user)
+  paymentTransactions: PaymentTransaction[];
 }
