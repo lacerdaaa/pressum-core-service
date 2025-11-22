@@ -203,7 +203,7 @@ export class BillingService {
       throw new BadRequestException('Missing signature');
     }
 
-    const secret = process.env.ABACATEPAY_API_KEY;
+    const secret = process.env.ABACATE_WEBHOOK_SECRET ?? process.env.ABACATEPAY_API_KEY;
     const computed = createHmac('sha256', secret ?? '').update(rawBody).digest('hex');
 
     if (computed !== signature) {
@@ -278,7 +278,6 @@ export class BillingService {
         await this.subscriptionRepo.save(tx.subscription);
       }
     } else {
-      // PENDING or unknown
       tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);
     }
@@ -349,7 +348,6 @@ export class BillingService {
     subscription.canceledAt = new Date();
     await this.subscriptionRepo.save(subscription);
 
-    // Optionally mark the user as canceled if this was the active subscription
     if (subscription.user) {
       subscription.user.planStatus = PlanStatus.CANCELED;
       subscription.user.planEndDate = subscription.canceledAt;
