@@ -1,23 +1,31 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID, Length, IsUrl } from 'class-validator';
 
 export class CreateCheckoutDto {
   @IsString()
   @IsNotEmpty()
   planCode: string;
 
-  @IsString()
-  @IsOptional()
-  returnUrl?: string;
+  @IsUUID()
+  @IsNotEmpty()
+  userId: string;
 
   @IsString()
   @IsOptional()
+  @IsUrl({ require_tld: false })
+  returnUrl?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl({ require_tld: false })
   completionUrl?: string;
 
   @IsString()
   @IsNotEmpty()
+  @Length(11, 18)
   taxId: string;
 
   @IsString()
-  @IsNotEmpty()
-  userId: string;
+  @IsOptional()
+  @Length(10, 16)
+  cellphone?: string;
 }

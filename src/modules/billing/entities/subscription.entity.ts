@@ -25,7 +25,6 @@ export class Subscription extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   gatewayCustomerId?: string | null;
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   @ManyToOne(() => User, (user) => user.subscriptions, { onDelete: 'CASCADE' })
   user: User;
 
