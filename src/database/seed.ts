@@ -11,7 +11,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('Failed to run seeds', err);
   process.exit(1);
 });

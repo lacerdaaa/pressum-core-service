@@ -246,6 +246,7 @@ const examsSeedData: Array<{
     questions: [
       {
         type: QuestionType.ESSAY,
+        // eslint-disable-next-line no-useless-escape
         text: 'A partir da leitura dos textos motivadores seguintes e com base nos conhecimentos construídos ao longo de sua formação, redija um texto dissertativo-argumentativo na modalidade escrita formal da língua portuguesa sobre o tema \"O impacto da tecnologia nas relações humanas contemporâneas\".',
         area: 'Redação',
         essayTopic: 'O impacto da tecnologia nas relações humanas contemporâneas',
@@ -267,6 +268,7 @@ const examsSeedData: Array<{
           {
             title: 'Texto III',
             content:
+            // eslint-disable-next-line no-useless-escape
               '\"À medida que nos tornamos mais conectados digitalmente, corremos o risco de nos tornarmos mais desconectados emocionalmente. A tecnologia deve ser uma ponte para relações mais profundas, não um substituto delas.\"',
             source: 'SILVA, Maria. O paradoxo digital. 2022.',
           },
@@ -285,7 +287,6 @@ export async function seedExams(dataSource: DataSource) {
 
   const existing = await examsRepository.count();
   if (existing > 0) {
-    // eslint-disable-next-line no-console
     console.log('Skipping exam seed: exams already exist');
     return;
   }
@@ -335,6 +336,5 @@ export async function seedExams(dataSource: DataSource) {
     await examsRepository.save(exam);
   }
 
-  // eslint-disable-next-line no-console
   console.log('Seeded exams');
 }
