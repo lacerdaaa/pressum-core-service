@@ -145,19 +145,20 @@ export class AuthService {
       planEndDate?: Date | null;
     },
   ): PresentedUser {
-     
     return {
       id: user.id,
       name: user.name,
       email: user.email,
-      plan: user.plan as UserPlan,
-      planStatus: user.planStatus as PlanStatus,
+      plan: user.plan ?? UserPlan.FREE,
+      planStatus: user.planStatus ?? PlanStatus.PENDING,
       planStartDate: user.planStartDate ?? null,
       planEndDate: user.planEndDate ?? null,
-      role: (user.role ?? UserRole.USER) as UserRole,
+      role: user.role ?? UserRole.USER,
       metrics: user.metrics,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
+      subscription:
+        (user as any).subscription ?? null,
     };
   }
 }
