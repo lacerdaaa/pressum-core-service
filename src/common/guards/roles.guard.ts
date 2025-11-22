@@ -25,6 +25,7 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Access denied');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const hasRole = requiredRoles.includes(user.role);
     if (!hasRole) {
       throw new ForbiddenException('Access denied');

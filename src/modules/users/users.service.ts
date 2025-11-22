@@ -11,12 +11,16 @@ import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserPlanDto } from './dto/update-user-plan.dto';
 import { UserMetrics } from './interfaces/user-metrics.interface';
+import { SubscriptionStatus } from '../../common/enums/billing.enum';
+import { Subscription } from '../billing/entities/subscription.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    @InjectRepository(Subscription)
+    private readonly subscriptionsRepository: Repository<Subscription>,
   ) {}
 
   async createUser(payload: {
@@ -119,6 +123,40 @@ export class UsersService {
       completedAttempts: 0,
       averageScore: 0,
       totalStudyMinutes: 0,
+    };
+  }
+
+  async resolveActivePlan(userId: string): Promise<{
+    plan: UserPlan;
+    planStatus: PlanStatus;
+    planStartDate?: Date | null;
+    planEndDate?: Date | null;
+  }> {
+    const activeSubscription = await this.subscriptionsRepository.findOne({
+      where: {
+        user: { id: userId },
+        status: SubscriptionStatus.ACTIVE,
+      },
+      relations: { plan: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (activeSubscription?.plan) {
+      return {
+        plan: activeSubscription.plan.code as UserPlan,
+        planStatus: PlanStatus.ACTIVE,
+        planStartDate: activeSubscription.startedAt ?? new Date(),
+        planEndDate: activeSubscription.endsAt ?? null,
+      };
+    }
+
+    // Fallback para usuário (sem assinatura ativa)
+    const user = await this.findById(userId);
+    return {
+      plan: user.plan ?? UserPlan.FREE,
+      planStatus: user.planStatus ?? PlanStatus.PENDING,
+      planStartDate: user.planStartDate ?? null,
+      planEndDate: user.planEndDate ?? null,
     };
   }
 }

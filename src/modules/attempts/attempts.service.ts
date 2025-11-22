@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, Repository, In } from 'typeorm';
 import { Attempt } from './entities/attempt.entity';
 import { AttemptResponse } from './entities/attempt-response.entity';
 import { EssaySubmission } from './entities/essay-submission.entity';
@@ -17,6 +17,9 @@ import { FinishAttemptDto } from './dto/finish-attempt.dto';
 import { AttemptStatus } from '../../common/enums/attempt-status.enum';
 import { ResultsService } from '../results/results.service';
 import { User } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
+import { Plan } from '../billing/entities/plan.entity';
+import { UserPlan } from '../../common/enums/plan.enum';
 
 @Injectable()
 export class AttemptsService {
@@ -32,7 +35,8 @@ export class AttemptsService {
     private readonly questionsRepository: Repository<Question>,
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private readonly resultsService: ResultsService,
-  ) {}
+    private readonly usersService: UsersService,
+  ) { }
 
   async startAttempt(examId: string, userId: string, dto: CreateAttemptDto) {
     const exam = await this.examsRepository.findOne({
@@ -53,6 +57,8 @@ export class AttemptsService {
       throw new NotFoundException('User not found');
     }
 
+    await this.ensureAttemptLimit(userId);
+
     const attempt = this.attemptsRepository.create({
       exam,
       user,
@@ -70,6 +76,38 @@ export class AttemptsService {
       bookmarkedQuestionIds: savedAttempt.bookmarkedQuestionIds,
       questions: exam.questions,
     };
+  }
+
+  private async ensureAttemptLimit(userId: string) {
+    // Resolve plano vigente (assinatura ativa ou fallback user)
+    const planInfo = await this.usersService.resolveActivePlan(userId);
+    const planCode = planInfo.plan ?? UserPlan.FREE;
+
+    // Buscar entitlements do plano
+    const planRepo = this.usersRepository.manager.getRepository(Plan);
+    const plan = await planRepo.findOne({ where: { code: planCode } });
+    const entitlements = (plan?.entitlements as Record<string, unknown>) || {};
+    const maxAttemptsPerMonth = entitlements.maxAttemptsPerMonth as number | null | undefined;
+
+    if (!maxAttemptsPerMonth || maxAttemptsPerMonth <= 0) {
+      return; // ilimitado
+    }
+
+    // Contar tentativas no mês corrente (qualquer status relevante)
+    const now = new Date();
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+
+    const completed = await this.attemptsRepository.count({
+      where: {
+        user: { id: userId },
+        createdAt: Between(startOfMonth, endOfMonth),
+      },
+    });
+
+    if (completed >= maxAttemptsPerMonth) {
+      throw new BadRequestException('Limite mensal de tentativas atingido para o seu plano.');
+    }
   }
 
   async getAttempt(attemptId: string, userId: string) {
