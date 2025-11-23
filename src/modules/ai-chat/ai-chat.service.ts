@@ -173,7 +173,14 @@ export class AiChatService {
       content: message.content,
     })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 
-    const completion = await this.openAiClient.chat.completions.create({
+    const client = this.openAiClient;
+    if (!client) {
+      throw new ServiceUnavailableException(
+        'OpenAI API não configurada. Defina OPENAI_API_KEY.',
+      );
+    }
+
+    const completion = await client.chat.completions.create({
       model: session.model,
       temperature: 0.3,
       messages: messagesPayload,
