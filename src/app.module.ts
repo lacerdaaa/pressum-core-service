@@ -10,6 +10,7 @@ import { AttemptsModule } from './modules/attempts/attempts.module';
 import { ResultsModule } from './modules/results/results.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { AiInsightsModule } from './modules/ai-insights/ai-insights.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { BillingModule } from './modules/billing/billing.module';
     ResultsModule,
     CommentsModule,
     BillingModule,
+    AiInsightsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
