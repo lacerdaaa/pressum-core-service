@@ -25,6 +25,18 @@ export class Subscription extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   gatewayCustomerId?: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  billingTaxId?: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  billingCellphone?: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  checkoutReturnUrl?: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  checkoutCompletionUrl?: string | null;
+
   @ManyToOne(() => User, (user) => user.subscriptions, { onDelete: 'CASCADE' })
   user: User;
 

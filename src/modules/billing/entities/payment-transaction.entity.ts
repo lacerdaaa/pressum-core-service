@@ -28,6 +28,12 @@ export class PaymentTransaction extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true })
   rawPayload?: Record<string, any>;
 
+  @Column({ type: 'varchar', nullable: true })
+  checkoutUrl?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  pixCode?: string | null;
+
   @ManyToOne(() => User, (user) => user.paymentTransactions, { onDelete: 'CASCADE' })
   user: User;
 

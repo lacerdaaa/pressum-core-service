@@ -50,6 +50,11 @@ export class BillingController {
     return this.billingService.getPaymentsForUser(userId);
   }
 
+  @Get('/users/:userId/pending-payment')
+  async getPendingPayment(@Param('userId') userId: string) {
+    return this.billingService.getPendingPaymentForUser(userId);
+  }
+
   @Post('/subscriptions/:id/cancel')
   async cancelSubscription(@Param('id') id: string) {
     return this.billingService.cancelSubscription(id);

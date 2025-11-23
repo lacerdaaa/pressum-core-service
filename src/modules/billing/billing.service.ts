@@ -10,7 +10,7 @@ import { Subscription } from './entities/subscription.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
-import { PaymentMethod, PaymentStatus, SubscriptionStatus } from '../../common/enums/billing.enum';
+import { PaymentMethod, PaymentStatus, PlanPeriod, SubscriptionStatus } from '../../common/enums/billing.enum';
 import { PlanStatus, UserPlan } from '../../common/enums/plan.enum';
 import AbacatePay from 'abacatepay-nodejs-sdk';
 import type {
@@ -84,6 +84,71 @@ export class BillingService {
     }
   }
 
+  private addPeriod(baseDate: Date, period: PlanPeriod): Date {
+    const next = new Date(baseDate);
+    switch (period) {
+      case PlanPeriod.YEARLY:
+        next.setFullYear(next.getFullYear() + 1);
+        break;
+      case PlanPeriod.ONE_TIME:
+        break;
+      case PlanPeriod.MONTHLY:
+      default:
+        next.setMonth(next.getMonth() + 1);
+        break;
+    }
+    return next;
+  }
+
+  private calculateNextBillingDate(plan: Plan | null | undefined, start: Date): Date {
+    const period = plan?.period ?? PlanPeriod.MONTHLY;
+    return this.addPeriod(start, period);
+  }
+
+  private resolveAppBaseUrl() {
+    const base = process.env.BILLING_APP_BASE_URL ?? process.env.APP_BASE_URL ?? process.env.FRONTEND_URL;
+    return base?.endsWith('/') ? base.slice(0, -1) : base;
+  }
+
+  private getDefaultCompletionUrl() {
+    const configured = process.env.BILLING_COMPLETION_URL;
+    if (configured) {
+      return configured;
+    }
+    const base = this.resolveAppBaseUrl();
+    return base ? `${base}/payment/success` : undefined;
+  }
+
+  private getDefaultReturnUrl() {
+    const configured = process.env.BILLING_RETURN_URL;
+    if (configured) {
+      return configured;
+    }
+    const base = this.resolveAppBaseUrl();
+    return base ? `${base}/payment` : undefined;
+  }
+
+  private async userHasActiveSubscription(userId: string): Promise<boolean> {
+    return this.subscriptionRepo.exist({
+      where: { user: { id: userId }, status: SubscriptionStatus.ACTIVE },
+    });
+  }
+
+  private async maybeDowngradeUser(
+    user: User,
+    planStatus: PlanStatus,
+    referenceDate?: Date | null,
+  ) {
+    const stillActive = await this.userHasActiveSubscription(user.id);
+    if (stillActive) {
+      return;
+    }
+    user.plan = UserPlan.FREE;
+    user.planStatus = planStatus;
+    user.planEndDate = referenceDate ?? new Date();
+    await this.userRepo.save(user);
+  }
+
   async createCheckout(dto: CreateCheckoutDto) {
     if (!this.client) {
       throw new BadRequestException('Billing client not configured');
@@ -110,14 +175,6 @@ export class BillingService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const customerId = await this.ensureCustomer(user, dto.taxId, dto.cellphone);
 
-    const subscription = this.subscriptionRepo.create({
-      status: SubscriptionStatus.PENDING,
-      user,
-      plan,
-      gatewayCustomerId: customerId,
-    });
-    await this.subscriptionRepo.save(subscription);
-
     const cleanedTaxId = dto.taxId.replace(/\D/g, '');
     if (cleanedTaxId.length < 11) {
       throw new BadRequestException('Invalid taxId');
@@ -125,6 +182,21 @@ export class BillingService {
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const cleanedPhone = dto.cellphone ? dto.cellphone.replace(/\D/g, '') : undefined;
+    if (cleanedPhone && cleanedPhone.length < 10) {
+      throw new BadRequestException('Invalid cellphone');
+    }
+
+    const subscription = this.subscriptionRepo.create({
+      status: SubscriptionStatus.PENDING,
+      user,
+      plan,
+      gatewayCustomerId: customerId,
+      billingTaxId: cleanedTaxId,
+      billingCellphone: cleanedPhone,
+      checkoutReturnUrl: dto.returnUrl,
+      checkoutCompletionUrl: dto.completionUrl,
+    });
+    await this.subscriptionRepo.save(subscription);
 
     const billingPayload: CreateBillingData = {
       frequency: 'MULTIPLE_PAYMENTS',
@@ -169,6 +241,8 @@ export class BillingService {
       throw new BadRequestException('Failed to create billing');
     }
 
+    const maybePix = (billingData as IBillingWithPix)?.pixCode;
+
     const tx = this.txRepo.create({
       amountCents: plan.priceCents,
       currency: plan.currency,
@@ -180,10 +254,10 @@ export class BillingService {
       plan,
       subscription,
       rawPayload: billingData,
+      checkoutUrl: billingData.url ?? null,
+      pixCode: maybePix ?? null,
     });
     await this.txRepo.save(tx);
-
-    const maybePix = (billingData as IBillingWithPix)?.pixCode;
 
     return {
       checkoutUrl: billingData.url,
@@ -206,13 +280,11 @@ export class BillingService {
     const secret = process.env.ABACATE_WEBHOOK_SECRET ?? process.env.ABACATEPAY_API_KEY;
     const publicKey = process.env.ABACATEPAY_PUBLIC_KEY ?? secret;
 
-    // 1) valida secret simples (query/header)
     if (secretFromRequest && secret && secretFromRequest !== secret) {
       this.logger.warn('Invalid webhook secret (query/header)');
       throw new BadRequestException('Invalid signature');
     }
 
-    // 2) valida assinatura HMAC (base64) usando chave pública
     if (!signature) {
       this.logger.warn('Missing webhook signature header');
       throw new BadRequestException('Missing signature');
@@ -227,7 +299,7 @@ export class BillingService {
     }
 
     const parsedPayload = payload as {
-      id?: string; // event id
+      id?: string; 
       status?: string;
       data?: {
         id?: string;
@@ -265,19 +337,23 @@ export class BillingService {
       tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);
 
+      const plan = tx.plan ?? tx.subscription?.plan ?? null;
       if (tx.subscription) {
         tx.subscription.status = SubscriptionStatus.ACTIVE;
-        tx.subscription.startedAt = new Date();
+        tx.subscription.startedAt = tx.subscription.startedAt ?? new Date();
         tx.subscription.externalId = gatewayRef;
+        tx.subscription.endsAt = this.calculateNextBillingDate(
+          plan,
+          tx.subscription.startedAt,
+        );
         await this.subscriptionRepo.save(tx.subscription);
       }
 
-      const plan = tx.plan ?? tx.subscription?.plan;
       if (plan && tx.user) {
         tx.user.plan = plan.code as UserPlan;
         tx.user.planStatus = PlanStatus.ACTIVE;
-        tx.user.planStartDate = new Date();
-        tx.user.planEndDate = null;
+        tx.user.planStartDate = tx.subscription?.startedAt ?? new Date();
+        tx.user.planEndDate = tx.subscription?.endsAt ?? null;
         await this.userRepo.save(tx.user);
       }
     } else if (normalized === 'EXPIRED' || normalized === 'CANCELLED') {
@@ -291,6 +367,14 @@ export class BillingService {
         tx.subscription.canceledAt = new Date();
         await this.subscriptionRepo.save(tx.subscription);
       }
+
+      if (tx.user) {
+        await this.maybeDowngradeUser(
+          tx.user,
+          normalized === 'EXPIRED' ? PlanStatus.EXPIRED : PlanStatus.CANCELED,
+          tx.subscription?.canceledAt ?? tx.subscription?.endsAt ?? new Date(),
+        );
+      }
     } else if (normalized === 'REFUNDED') {
       tx.status = PaymentStatus.REFUNDED;
       tx.rawPayload = parsedPayload as Record<string, unknown>;
@@ -301,12 +385,78 @@ export class BillingService {
         tx.subscription.canceledAt = new Date();
         await this.subscriptionRepo.save(tx.subscription);
       }
+
+      if (tx.user) {
+        await this.maybeDowngradeUser(
+          tx.user,
+          PlanStatus.CANCELED,
+          tx.subscription?.canceledAt ?? new Date(),
+        );
+      }
     } else {
       tx.rawPayload = parsedPayload as Record<string, unknown>;
       await this.txRepo.save(tx);
     }
 
     return { ok: true };
+  }
+
+  async queueRenewalCheckout(subscription: Subscription) {
+    if (!this.client) {
+      this.logger.warn('Billing client is disabled; cannot queue renewal');
+      return;
+    }
+
+    if (!subscription.plan?.code || !subscription.user?.id) {
+      this.logger.warn(`Subscription ${subscription.id} missing plan or user for renewal`);
+      return;
+    }
+
+    const existingPending = await this.subscriptionRepo.findOne({
+      where: {
+        user: { id: subscription.user.id },
+        plan: { id: subscription.plan.id },
+        status: SubscriptionStatus.PENDING,
+      },
+    });
+
+    if (existingPending) {
+      return;
+    }
+
+    const taxId = subscription.billingTaxId;
+    const completionUrl =
+      subscription.checkoutCompletionUrl ?? this.getDefaultCompletionUrl();
+    if (!taxId || !completionUrl) {
+      this.logger.warn(
+        `Subscription ${subscription.id} missing tax/completion info; skipping renewal`,
+      );
+      return;
+    }
+
+    const checkoutDto: CreateCheckoutDto = {
+      planCode: subscription.plan.code,
+      userId: subscription.user.id,
+      taxId,
+      completionUrl,
+      returnUrl: subscription.checkoutReturnUrl ?? this.getDefaultReturnUrl(),
+    };
+
+    if (subscription.billingCellphone) {
+      checkoutDto.cellphone = subscription.billingCellphone;
+    }
+
+    try {
+      await this.createCheckout(checkoutDto);
+      this.logger.log(
+        `Renewal checkout generated for subscription ${subscription.id} / user ${subscription.user.id}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.error(
+        `Failed to auto-generate checkout for subscription ${subscription.id}: ${message}`,
+      );
+    }
   }
 
   private async ensureCustomer(user: User, taxId: string, cellphone?: string): Promise<string> {
@@ -356,6 +506,35 @@ export class BillingService {
       relations: { plan: true, subscription: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async getPendingPaymentForUser(userId: string) {
+    const pendingSub = await this.subscriptionRepo.findOne({
+      where: { user: { id: userId }, status: SubscriptionStatus.PENDING },
+      relations: { plan: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!pendingSub) {
+      return null;
+    }
+
+    const pendingTx = await this.txRepo.findOne({
+      where: { subscription: { id: pendingSub.id }, status: PaymentStatus.PENDING },
+      relations: { plan: true, subscription: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      subscription: pendingSub,
+      transaction: pendingTx,
+      checkoutUrl: pendingTx?.checkoutUrl ?? pendingTx?.rawPayload?.url ?? null,
+      pixCode:
+        pendingTx?.pixCode ??
+        (typeof pendingTx?.rawPayload === 'object'
+          ? (pendingTx?.rawPayload as Record<string, unknown>)?.pixCode ?? null
+          : null),
+    };
   }
 
   async cancelSubscription(subscriptionId: string, userId?: string) {
