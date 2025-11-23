@@ -38,6 +38,15 @@ export class Attempt extends BaseEntity {
   @Column({ type: 'text', array: true, default: '{}' })
   bookmarkedQuestionIds: string[];
 
+  @Column({ type: 'int', default: 1 })
+  attemptSequence: number;
+
+  @Column({ type: 'text', nullable: true })
+  examVersion?: string;
+
+  @Column({ type: 'text', nullable: true })
+  examCategory?: string;
+
   @ManyToOne(() => User, (user) => user.attempts, { onDelete: 'SET NULL' })
   user: User;
 

@@ -39,4 +39,13 @@ export class AttemptResult extends BaseEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   aiInsightsGeneratedAt?: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  examCategory?: string;
+
+  @Column({ type: 'text', nullable: true })
+  examVersion?: string;
+
+  @Column({ type: 'text', nullable: true })
+  examTitle?: string;
 }

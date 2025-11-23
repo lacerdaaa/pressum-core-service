@@ -29,7 +29,11 @@ export interface AttemptResultPayload {
     id: string;
     title: string;
     durationMinutes: number;
+    category: string;
+    version?: string | null;
   };
+  category: string;
+  examVersion?: string | null;
   summary: AttemptSummary;
   subjects: SubjectBreakdown[];
   strengths: SubjectBreakdown[];

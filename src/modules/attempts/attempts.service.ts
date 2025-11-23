@@ -59,6 +59,10 @@ export class AttemptsService {
 
     await this.ensureAttemptLimit(userId);
 
+    const userExamAttempts = await this.attemptsRepository.count({
+      where: { user: { id: userId }, exam: { id: exam.id } },
+    });
+
     const attempt = this.attemptsRepository.create({
       exam,
       user,
@@ -66,6 +70,9 @@ export class AttemptsService {
       startedAt: new Date(),
       timeRemainingSeconds: exam.timeLimitMinutes * 60,
       bookmarkedQuestionIds: dto.bookmarkedQuestionIds ?? [],
+      attemptSequence: userExamAttempts + 1,
+      examCategory: exam.category,
+      examVersion: exam.version,
     });
 
     const savedAttempt = await this.attemptsRepository.save(attempt);

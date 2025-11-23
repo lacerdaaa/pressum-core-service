@@ -8,6 +8,9 @@ import { CommentReply } from '../../comments/entities/comment-reply.entity';
 import { type UserMetrics } from '../interfaces/user-metrics.interface';
 import { Subscription } from '../../billing/entities/subscription.entity';
 import { PaymentTransaction } from '../../billing/entities/payment-transaction.entity';
+import { UserMetric } from '../../metrics/entities/user-metric.entity';
+import { UserSubjectMetric } from '../../metrics/entities/user-subject-metric.entity';
+import { UserMistakeLog } from '../../metrics/entities/user-mistake-log.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -58,4 +61,13 @@ export class User extends BaseEntity {
 
   @OneToMany(() => PaymentTransaction, (transaction) => transaction.user)
   paymentTransactions: PaymentTransaction[];
+
+  @OneToMany(() => UserMetric, (metric) => metric.user)
+  metricSnapshots: UserMetric[];
+
+  @OneToMany(() => UserSubjectMetric, (metric) => metric.user)
+  subjectMetrics: UserSubjectMetric[];
+
+  @OneToMany(() => UserMistakeLog, (mistake) => mistake.user)
+  mistakeLogs: UserMistakeLog[];
 }

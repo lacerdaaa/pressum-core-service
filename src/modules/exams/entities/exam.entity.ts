@@ -37,6 +37,12 @@ export class Exam extends BaseEntity {
   @Column({ default: false })
   hasEssay: boolean;
 
+  @Column({ type: 'text', default: 'general' })
+  category: string;
+
+  @Column({ type: 'text', nullable: true })
+  version?: string;
+
   @Column({ nullable: true })
   createdBy?: string;
 

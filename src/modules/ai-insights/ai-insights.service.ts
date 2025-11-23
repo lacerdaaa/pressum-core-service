@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Inject,
   Injectable,
@@ -80,7 +79,12 @@ export class AiInsightsService {
         throw new Error('Resposta vazia da OpenAI');
       }
 
-      const parsed = JSON.parse(content);
+      const parsed: unknown = JSON.parse(content);
+
+      if (!this.isPartialAiInsightsPayload(parsed)) {
+        throw new Error('Resposta inválida da OpenAI');
+      }
+
       const normalized = this.normalizeResponse(parsed);
       const savedResult = await this.resultsService.saveAiInsights(
         attemptId,
@@ -153,6 +157,12 @@ export class AiInsightsService {
       return '0.0';
     }
     return value.toFixed(1);
+  }
+
+  private isPartialAiInsightsPayload(
+    data: unknown,
+  ): data is Partial<AiInsightsPayload> {
+    return typeof data === 'object' && data !== null;
   }
 
   private normalizeResponse(data: Partial<AiInsightsPayload>): AiInsightsPayload {

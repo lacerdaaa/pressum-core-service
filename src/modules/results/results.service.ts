@@ -78,6 +78,9 @@ export class ResultsService {
     result.weaknesses = breakdown.weaknesses;
     result.totalTimeSeconds = summary.totalTimeSeconds;
     result.averageTimePerQuestion = summary.averageTimePerQuestion;
+    result.examCategory = attempt.exam.category;
+    result.examVersion = attempt.exam.version;
+    result.examTitle = attempt.exam.title;
 
     const savedResult = await this.resultsRepository.save(result);
 
@@ -86,7 +89,10 @@ export class ResultsService {
     return this.buildPayload(attempt, savedResult);
   }
 
-  async getAttemptResult(attemptId: string, userId: string) {
+  async getAttemptResult(
+    attemptId: string,
+    userId: string,
+  ): Promise<AttemptResultPayload> {
     const attempt = await this.attemptsRepository.findOne({
       where: { id: attemptId, user: { id: userId } },
       relations: [
@@ -212,7 +218,10 @@ export class ResultsService {
     };
   }
 
-  async getAttemptResultEntity(attemptId: string, userId: string) {
+  async getAttemptResultEntity(
+    attemptId: string,
+    userId: string,
+  ): Promise<AttemptResult> {
     const attempt = await this.attemptsRepository.findOne({
       where: { id: attemptId, user: { id: userId } },
       relations: ['result'],
@@ -222,25 +231,26 @@ export class ResultsService {
       throw new NotFoundException('Attempt not found');
     }
 
-    if (!attempt.result) {
+    let result = attempt.result;
+
+    if (!result) {
       await this.generateAttemptResult(attemptId);
-      const createdResult = await this.resultsRepository.findOne({
+      result = await this.resultsRepository.findOne({
         where: { attempt: { id: attemptId } },
       });
-      if (!createdResult) {
+      if (!result) {
         throw new NotFoundException('Attempt result not found');
       }
-      attempt.result = createdResult;
     }
 
-    return attempt.result;
+    return result;
   }
 
   async saveAiInsights(
     attemptId: string,
     userId: string,
     insights: AiInsightsPayload,
-  ) {
+  ): Promise<AttemptResult> {
     const result = await this.getAttemptResultEntity(attemptId, userId);
     result.aiInsights = insights;
     result.aiInsightsGeneratedAt = new Date();
@@ -318,7 +328,11 @@ export class ResultsService {
         id: attempt.exam.id,
         title: attempt.exam.title,
         durationMinutes: attempt.exam.durationMinutes,
+        category: attempt.exam.category,
+        version: attempt.exam.version,
       },
+      category: attempt.exam.category,
+      examVersion: attempt.exam.version,
       summary: {
         totalScore: result.totalScore,
         totalQuestions: result.totalQuestions,

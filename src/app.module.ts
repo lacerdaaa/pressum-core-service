@@ -11,6 +11,7 @@ import { ResultsModule } from './modules/results/results.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { AiInsightsModule } from './modules/ai-insights/ai-insights.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { AiInsightsModule } from './modules/ai-insights/ai-insights.module';
     CommentsModule,
     BillingModule,
     AiInsightsModule,
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
