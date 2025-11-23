@@ -19,13 +19,13 @@ export const AI_CHAT_LIMITS: Record<UserPlan, AiChatPlanLimits> = {
   [UserPlan.PREMIUM]: {
     maxActiveSessions: 50,
     maxMessagesPerSession: 30,
-    tokensLimit: 20000,
+    tokensLimit: 50000,
     models: [DEFAULT_AI_CHAT_MODEL, 'gpt-4o-mini', 'gpt-4o'],
   },
   [UserPlan.INTENSIVE]: {
     maxActiveSessions: Number.POSITIVE_INFINITY,
     maxMessagesPerSession: 60,
-    tokensLimit: 40000,
+    tokensLimit: 10000000,
     models: [DEFAULT_AI_CHAT_MODEL, 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1'],
   },
 };

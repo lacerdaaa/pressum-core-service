@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,6 +13,7 @@ import { AiChatSession } from './entities/ai-chat-session.entity';
 import { AiChatMessage } from './entities/ai-chat-message.entity';
 import { CreateAiChatSessionDto } from './dto/create-ai-chat-session.dto';
 import { SendAiChatMessageDto } from './dto/send-ai-chat-message.dto';
+import { UpdateAiChatSessionDto } from './dto/update-ai-chat-session.dto';
 import { type JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { AI_CHAT_LIMITS, DEFAULT_AI_CHAT_MODEL } from './constants';
 import { UserPlan, PlanStatus } from '../../common/enums/plan.enum';
@@ -221,6 +223,26 @@ export class AiChatService {
     const session = await this.getSession(userId, sessionId);
     session.status = 'closed';
     return this.sessionsRepository.save(session);
+  }
+
+  async updateSession(
+    userId: string,
+    sessionId: string,
+    dto: UpdateAiChatSessionDto,
+  ) {
+    const session = await this.getSession(userId, sessionId);
+    const nextTitle = dto.title?.trim();
+    if (!nextTitle) {
+      throw new BadRequestException('O título da conversa é obrigatório.');
+    }
+    session.title = nextTitle;
+    return this.sessionsRepository.save(session);
+  }
+
+  async deleteSession(userId: string, sessionId: string) {
+    const session = await this.getSession(userId, sessionId);
+    await this.sessionsRepository.remove(session);
+    return { success: true };
   }
 
   private async enforceActiveSessionLimit(

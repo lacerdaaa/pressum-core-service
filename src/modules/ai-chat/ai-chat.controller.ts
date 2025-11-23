@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -14,6 +16,7 @@ import { AiChatService } from './ai-chat.service';
 import { CreateAiChatSessionDto } from './dto/create-ai-chat-session.dto';
 import { SendAiChatMessageDto } from './dto/send-ai-chat-message.dto';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { UpdateAiChatSessionDto } from './dto/update-ai-chat-session.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('ai-chat')
@@ -67,5 +70,22 @@ export class AiChatController {
     @Param('sessionId') sessionId: string,
   ) {
     return this.aiChatService.closeSession(user.sub, sessionId);
+  }
+
+  @Patch('sessions/:sessionId')
+  updateSession(
+    @CurrentUser() user: JwtPayload,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: UpdateAiChatSessionDto,
+  ) {
+    return this.aiChatService.updateSession(user.sub, sessionId, dto);
+  }
+
+  @Delete('sessions/:sessionId')
+  deleteSession(
+    @CurrentUser() user: JwtPayload,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.aiChatService.deleteSession(user.sub, sessionId);
   }
 }
