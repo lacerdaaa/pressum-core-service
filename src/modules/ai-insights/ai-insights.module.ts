@@ -24,5 +24,6 @@ import { OPENAI_CLIENT } from './constants';
       },
     },
   ],
+  exports: [AiInsightsService, OPENAI_CLIENT],
 })
 export class AiInsightsModule {}

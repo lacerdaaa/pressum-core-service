@@ -12,6 +12,7 @@ import { CommentsModule } from './modules/comments/comments.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { AiInsightsModule } from './modules/ai-insights/ai-insights.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
+import { AiChatModule } from './modules/ai-chat/ai-chat.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { MetricsModule } from './modules/metrics/metrics.module';
     CommentsModule,
     BillingModule,
     AiInsightsModule,
+    AiChatModule,
     MetricsModule,
   ],
   controllers: [AppController],
