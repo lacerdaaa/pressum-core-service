@@ -19,4 +19,15 @@ export class AiInsightsController {
       forceRefresh: force === 'true',
     });
   }
+
+  @Get('questions/:questionId/ai-solution')
+  getQuestionSolution(
+    @Param('questionId') questionId: string,
+    @CurrentUser() user: JwtPayload,
+    @Query('force') force?: string,
+  ) {
+    return this.aiInsightsService.generateQuestionSolution(questionId, user, {
+      forceRefresh: force === 'true',
+    });
+  }
 }

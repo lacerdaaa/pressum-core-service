@@ -5,6 +5,7 @@ import { Exam } from './exam.entity';
 import { QuestionOption } from './question-option.entity';
 import { EssaySupportingText } from './supporting-text.entity';
 import { QuestionComment } from '../../comments/entities/question-comment.entity';
+import { type AiQuestionSolutionPayload } from '../../../common/interfaces/ai-insights.interface';
 
 @Entity('questions')
 export class Question extends BaseEntity {
@@ -54,4 +55,10 @@ export class Question extends BaseEntity {
 
   @OneToMany(() => QuestionComment, (comment) => comment.question)
   comments: QuestionComment[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  aiSolution?: AiQuestionSolutionPayload | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  aiSolutionGeneratedAt?: Date | null;
 }

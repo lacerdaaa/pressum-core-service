@@ -25,3 +25,14 @@ export interface AiInsightsPayload {
 export interface AiInsightsResponse extends AiInsightsPayload {
   generatedAt?: string;
 }
+
+export interface AiQuestionSolutionPayload {
+  explanation: string;
+  stepByStep: string[];
+  studyTips: string[];
+  commonPitfalls: string[];
+}
+
+export interface AiQuestionSolutionResponse extends AiQuestionSolutionPayload {
+  generatedAt: string;
+}

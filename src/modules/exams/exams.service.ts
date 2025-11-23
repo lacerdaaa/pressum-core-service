@@ -11,6 +11,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { QuestionType } from '../../common/enums/exam.enum';
 import { FilterQuestionsDto } from './dto/filter-questions.dto';
+import { type AiQuestionSolutionPayload } from '../../common/interfaces/ai-insights.interface';
 
 @Injectable()
 export class ExamsService {
@@ -231,5 +232,23 @@ export class ExamsService {
       { id: examId },
       { totalQuestions: count },
     );
+  }
+
+  async saveQuestionAiSolution(
+    questionId: string,
+    solution: AiQuestionSolutionPayload,
+  ) {
+    const question = await this.questionsRepository.findOne({
+      where: { id: questionId },
+    });
+
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
+
+    question.aiSolution = solution;
+    question.aiSolutionGeneratedAt = new Date();
+
+    return this.questionsRepository.save(question);
   }
 }
