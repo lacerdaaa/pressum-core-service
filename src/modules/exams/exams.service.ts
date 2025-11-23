@@ -10,6 +10,7 @@ import { FilterExamsDto } from './dto/filter-exams.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { QuestionType } from '../../common/enums/exam.enum';
+import { FilterQuestionsDto } from './dto/filter-questions.dto';
 
 @Injectable()
 export class ExamsService {
@@ -62,6 +63,68 @@ export class ExamsService {
         pageSize,
       },
     };
+  }
+
+  async findQuestions(query: FilterQuestionsDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const qb = this.questionsRepository
+      .createQueryBuilder('question')
+      .leftJoinAndSelect('question.exam', 'exam');
+
+    if (query.search) {
+      qb.andWhere(
+        '(LOWER(question.text) LIKE :search OR LOWER(question.area) LIKE :search OR LOWER(COALESCE(question.subarea, \'\')) LIKE :search)',
+        { search: `%${query.search.toLowerCase()}%` },
+      );
+    }
+
+    if (query.area) {
+      qb.andWhere('LOWER(question.area) = :area', {
+        area: query.area.toLowerCase(),
+      });
+    }
+
+    if (query.type) {
+      qb.andWhere('question.type = :type', { type: query.type });
+    }
+
+    if (query.examId) {
+      qb.andWhere('exam.id = :examId', { examId: query.examId });
+    }
+
+    qb.orderBy('question.createdAt', 'DESC')
+      .take(pageSize)
+      .skip((page - 1) * pageSize);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return {
+      items,
+      pagination: {
+        total,
+        page,
+        pageSize,
+      },
+    };
+  }
+
+  async findQuestionById(id: string) {
+    const question = await this.questionsRepository.findOne({
+      where: { id },
+      relations: ['options', 'supportingTexts', 'exam'],
+      order: {
+        options: { createdAt: 'ASC' },
+        supportingTexts: { createdAt: 'ASC' },
+      },
+    });
+
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
+
+    return question;
   }
 
   async findOne(id: string) {

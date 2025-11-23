@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -235,12 +236,13 @@ export class ResultsService {
 
     if (!result) {
       await this.generateAttemptResult(attemptId);
-      result = await this.resultsRepository.findOne({
+      const createdResult = await this.resultsRepository.findOne({
         where: { attempt: { id: attemptId } },
       });
-      if (!result) {
+      if (!createdResult) {
         throw new NotFoundException('Attempt result not found');
       }
+      result = createdResult;
     }
 
     return result;

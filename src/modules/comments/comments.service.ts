@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Question } from '../exams/entities/question.entity';
 import { User } from '../users/entities/user.entity';
+import { UserRole } from '../../common/enums/role.enum';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { CommentReply } from './entities/comment-reply.entity';
@@ -101,11 +102,22 @@ export class CommentsService {
       relations: ['user'],
     });
 
+    const requester = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
 
-    if (comment.user.id !== userId) {
+    if (!requester) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isOwner = comment.user.id === userId;
+    const isAdmin = requester.role === UserRole.ADMIN;
+
+    if (!isOwner && !isAdmin) {
       throw new ForbiddenException('You can only delete your own comments');
     }
 
@@ -119,11 +131,22 @@ export class CommentsService {
       relations: ['user'],
     });
 
+    const requester = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
     if (!reply) {
       throw new NotFoundException('Reply not found');
     }
 
-    if (reply.user.id !== userId) {
+    if (!requester) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isOwner = reply.user.id === userId;
+    const isAdmin = requester.role === UserRole.ADMIN;
+
+    if (!isOwner && !isAdmin) {
       throw new ForbiddenException('You can only delete your own replies');
     }
 
