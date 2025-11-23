@@ -10,7 +10,10 @@ import OpenAI from 'openai';
 import { ResultsService } from '../results/results.service';
 import { OPENAI_CLIENT } from './constants';
 import { AttemptResultPayload } from '../../common/interfaces/result-analysis.interface';
-import { AiInsightsResponseDto } from './dto/ai-insights-response.dto';
+import {
+  AiInsightsPayload,
+  AiInsightsResponse,
+} from '../../common/interfaces/ai-insights.interface';
 
 @Injectable()
 export class AiInsightsService {
@@ -28,7 +31,20 @@ export class AiInsightsService {
   async generateInsights(
     attemptId: string,
     userId: string,
-  ): Promise<AiInsightsResponseDto> {
+    options?: { forceRefresh?: boolean },
+  ): Promise<AiInsightsResponse> {
+    const resultEntity = await this.resultsService.getAttemptResultEntity(
+      attemptId,
+      userId,
+    );
+
+    if (!options?.forceRefresh && resultEntity.aiInsights) {
+      return {
+        ...resultEntity.aiInsights,
+        generatedAt: resultEntity.aiInsightsGeneratedAt?.toISOString(),
+      };
+    }
+
     if (!this.openAiClient) {
       throw new ServiceUnavailableException(
         'OpenAI API não configurada. Defina OPENAI_API_KEY.',
@@ -65,8 +81,17 @@ export class AiInsightsService {
       }
 
       const parsed = JSON.parse(content);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      return this.normalizeResponse(parsed);
+      const normalized = this.normalizeResponse(parsed);
+      const savedResult = await this.resultsService.saveAiInsights(
+        attemptId,
+        userId,
+        normalized,
+      );
+
+      return {
+        ...normalized,
+        generatedAt: savedResult.aiInsightsGeneratedAt?.toISOString(),
+      };
     } catch (error) {
       this.logger.error('Erro ao gerar insights com IA', error as Error);
       throw new ServiceUnavailableException(
@@ -130,7 +155,7 @@ export class AiInsightsService {
     return value.toFixed(1);
   }
 
-  private normalizeResponse(data: Partial<AiInsightsResponseDto>) {
+  private normalizeResponse(data: Partial<AiInsightsPayload>): AiInsightsPayload {
     const focusAreas = Array.isArray(data.focusAreas) ? data.focusAreas : [];
     const actionPlan = Array.isArray(data.actionPlan) ? data.actionPlan : [];
     const practiceDrills = Array.isArray(data.practiceDrills)

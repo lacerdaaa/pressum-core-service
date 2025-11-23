@@ -14,6 +14,7 @@ import { UsersService } from '../users/users.service';
 import { AttemptStatus } from '../../common/enums/attempt-status.enum';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { QuestionType } from '../../common/enums/exam.enum';
+import { AiInsightsPayload } from '../../common/interfaces/ai-insights.interface';
 
 @Injectable()
 export class ResultsService {
@@ -209,6 +210,41 @@ export class ResultsService {
       bestPercentage,
       totalCompleted,
     };
+  }
+
+  async getAttemptResultEntity(attemptId: string, userId: string) {
+    const attempt = await this.attemptsRepository.findOne({
+      where: { id: attemptId, user: { id: userId } },
+      relations: ['result'],
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Attempt not found');
+    }
+
+    if (!attempt.result) {
+      await this.generateAttemptResult(attemptId);
+      const createdResult = await this.resultsRepository.findOne({
+        where: { attempt: { id: attemptId } },
+      });
+      if (!createdResult) {
+        throw new NotFoundException('Attempt result not found');
+      }
+      attempt.result = createdResult;
+    }
+
+    return attempt.result;
+  }
+
+  async saveAiInsights(
+    attemptId: string,
+    userId: string,
+    insights: AiInsightsPayload,
+  ) {
+    const result = await this.getAttemptResultEntity(attemptId, userId);
+    result.aiInsights = insights;
+    result.aiInsightsGeneratedAt = new Date();
+    return this.resultsRepository.save(result);
   }
 
   private calculateBreakdown(

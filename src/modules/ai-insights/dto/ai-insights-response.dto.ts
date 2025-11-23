@@ -1,23 +1,15 @@
-export interface AiFocusArea {
-  topic: string;
-  reason: string;
-}
+import {
+  AiInsightsResponse,
+  AiFocusArea,
+  AiActionItem,
+  AiPracticeDrill,
+} from '../../../common/interfaces/ai-insights.interface';
 
-export interface AiActionItem {
-  title: string;
-  description: string;
-}
-
-export interface AiPracticeDrill {
-  title: string;
-  frequency: string;
-  tip: string;
-}
-
-export class AiInsightsResponseDto {
+export class AiInsightsResponseDto implements AiInsightsResponse {
   summary: string;
   focusAreas: AiFocusArea[];
   actionPlan: AiActionItem[];
   quickWins: string[];
   practiceDrills: AiPracticeDrill[];
+  generatedAt?: string;
 }

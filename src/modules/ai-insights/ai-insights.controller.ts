@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { type JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -13,7 +13,10 @@ export class AiInsightsController {
   getInsights(
     @Param('attemptId') attemptId: string,
     @CurrentUser() user: JwtPayload,
+    @Query('force') force?: string,
   ) {
-    return this.aiInsightsService.generateInsights(attemptId, user.sub);
+    return this.aiInsightsService.generateInsights(attemptId, user.sub, {
+      forceRefresh: force === 'true',
+    });
   }
 }

@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { SubjectBreakdown } from '../../../common/interfaces/result-analysis.interface';
+import { AiInsightsPayload } from '../../../common/interfaces/ai-insights.interface';
 import { Attempt } from '../../attempts/entities/attempt.entity';
 
 @Entity('attempt_results')
@@ -32,4 +33,10 @@ export class AttemptResult extends BaseEntity {
 
   @Column({ type: 'jsonb' })
   weaknesses: SubjectBreakdown[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  aiInsights?: AiInsightsPayload | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  aiInsightsGeneratedAt?: Date | null;
 }
