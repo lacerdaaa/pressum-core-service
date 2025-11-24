@@ -18,6 +18,7 @@ Stack: NestJS 11, TypeORM/PostgreSQL, JWT (access/refresh), class-validator, sch
 ### AuthModule (`/auth`)
 - `POST /auth/register` — cria usuário, seta plano inicial.
 - `POST /auth/login` — autentica e devolve access/refresh tokens.
+- `POST /auth/google` — recebe `idToken` do Google, valida e emite nossos JWTs (cria usuário free se não existir).
 - `POST /auth/refresh` — renova access token.
 - `GET /auth/me` — perfil + dados de plano/role/metrics básicos.
 

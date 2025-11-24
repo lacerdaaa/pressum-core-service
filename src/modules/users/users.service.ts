@@ -30,6 +30,7 @@ export class UsersService {
     plan?: UserPlan;
     planStatus?: PlanStatus;
     role?: UserRole;
+    googleId?: string | null;
   }): Promise<User> {
     const existing = await this.usersRepository.findOne({
       where: { email: payload.email },
@@ -48,6 +49,7 @@ export class UsersService {
         payload.planStatus === PlanStatus.ACTIVE ? new Date() : null,
       metrics: this.getDefaultMetrics(),
       role: payload.role ?? UserRole.USER,
+      googleId: payload.googleId ?? null,
     });
 
     return this.usersRepository.save(user);
@@ -57,6 +59,10 @@ export class UsersService {
     return this.usersRepository.findOne({
       where: { email: email.toLowerCase() },
     });
+  }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { googleId } });
   }
 
   async findById(id: string): Promise<User> {
@@ -70,6 +76,18 @@ export class UsersService {
   async updateProfile(id: string, dto: UpdateUserDto): Promise<User> {
     const user = await this.findById(id);
     Object.assign(user, dto);
+    return this.usersRepository.save(user);
+  }
+
+  async attachGoogleAccount(userId: string, googleId: string, name?: string | null) {
+    const user = await this.findById(userId);
+    if (user.googleId && user.googleId !== googleId) {
+      throw new ConflictException('Conta já vinculada a outro Google ID');
+    }
+    user.googleId = googleId;
+    if (name && !user.name) {
+      user.name = name;
+    }
     return this.usersRepository.save(user);
   }
 

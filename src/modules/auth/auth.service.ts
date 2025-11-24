@@ -2,6 +2,9 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
+import type { TokenPayload } from 'google-auth-library';
 import { PlanStatus, UserPlan } from '../../common/enums/plan.enum';
 import { UserRole } from '../../common/enums/role.enum';
 import { UsersService } from '../users/users.service';
@@ -12,6 +15,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UserMetrics } from '../users/interfaces/user-metrics.interface';
 import { Subscription } from '../billing/entities/subscription.entity';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 type PresentedUser = {
   id: string;
@@ -67,6 +71,62 @@ export class AuthService {
     return { user: this.presentUser(user), tokens };
   }
 
+  async googleLogin(dto: GoogleLoginDto) {
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    if (!clientId) {
+      throw new UnauthorizedException('Google login not configured');
+    }
+
+    let payload: TokenPayload | null = null;
+    try {
+      const ticket = await this.getOAuthClient(clientId).verifyIdToken({
+        idToken: dto.idToken,
+        audience: clientId,
+      });
+      payload = ticket.getPayload() as TokenPayload;
+    } catch (err) {
+      throw new UnauthorizedException(
+        err instanceof Error ? err.message : 'Invalid Google token',
+      );
+    }
+
+    const googleId = payload?.sub;
+    const email = payload?.email;
+    const name = payload?.name ?? email ?? 'Usuário';
+
+    if (!googleId || !email) {
+      throw new UnauthorizedException('Google token missing required claims');
+    }
+
+    let user = await this.usersService.findByGoogleId(googleId);
+
+    if (!user) {
+      user = await this.usersService.findByEmail(email);
+      if (user) {
+        // vincula googleId à conta existente
+        user = await this.usersService.attachGoogleAccount(user.id, googleId, name);
+      }
+    }
+
+    if (!user) {
+      const randomPassword = randomBytes(32).toString('hex');
+      const passwordHash = await this.hashPassword(randomPassword);
+      user = await this.usersService.createUser({
+        name,
+        email,
+        passwordHash,
+        plan: UserPlan.FREE,
+        planStatus: PlanStatus.PENDING,
+        googleId,
+        role: UserRole.USER,
+      });
+    }
+
+    await this.usersService.recordLogin(user.id);
+    const tokens = await this.generateTokens(user);
+    return { user: this.presentUser(user), tokens };
+  }
+
   async refreshToken(dto: RefreshTokenDto) {
     try {
       const payload = await this.jwtService.verifyAsync<JwtPayload>(
@@ -98,6 +158,10 @@ export class AuthService {
       10,
     );
     return bcrypt.hash(plain, saltRounds);
+  }
+
+  private getOAuthClient(clientId: string) {
+    return new OAuth2Client(clientId, this.configService.get<string>('GOOGLE_CLIENT_SECRET') ?? undefined);
   }
 
   private async generateTokens(user: User) {
