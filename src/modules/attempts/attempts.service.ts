@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   BadRequestException,
   Injectable,
@@ -77,30 +78,29 @@ export class AttemptsService {
 
     const savedAttempt = await this.attemptsRepository.save(attempt);
 
+    const sanitizedQuestions = this.sanitizeQuestions(exam.questions);
+
     return {
       attemptId: savedAttempt.id,
       timeLimitSeconds: exam.timeLimitMinutes * 60,
       bookmarkedQuestionIds: savedAttempt.bookmarkedQuestionIds,
-      questions: exam.questions,
+      questions: sanitizedQuestions,
     };
   }
 
   private async ensureAttemptLimit(userId: string) {
-    // Resolve plano vigente (assinatura ativa ou fallback user)
     const planInfo = await this.usersService.resolveActivePlan(userId);
     const planCode = planInfo.plan ?? UserPlan.FREE;
 
-    // Buscar entitlements do plano
     const planRepo = this.usersRepository.manager.getRepository(Plan);
     const plan = await planRepo.findOne({ where: { code: planCode } });
     const entitlements = (plan?.entitlements as Record<string, unknown>) || {};
     const maxAttemptsPerMonth = entitlements.maxAttemptsPerMonth as number | null | undefined;
 
     if (!maxAttemptsPerMonth || maxAttemptsPerMonth <= 0) {
-      return; // ilimitado
+      return;
     }
 
-    // Contar tentativas no mês corrente (qualquer status relevante)
     const now = new Date();
     const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
@@ -135,7 +135,15 @@ export class AttemptsService {
       throw new NotFoundException('Attempt not found');
     }
 
-    return attempt;
+    const sanitizedQuestions = this.sanitizeQuestions(attempt.exam.questions);
+
+    return {
+      ...attempt,
+      exam: {
+        ...attempt.exam,
+        questions: sanitizedQuestions,
+      },
+    };
   }
 
   async saveResponses(
@@ -268,5 +276,27 @@ export class AttemptsService {
     await this.attemptsRepository.save(attempt);
     const result = await this.resultsService.generateAttemptResult(attempt.id);
     return result;
+  }
+
+  private sanitizeQuestions(questions: Question[]) {
+    return questions.map((question) => {
+      const {
+        options = [],
+        explanation,
+        aiSolution,
+        aiSolutionGeneratedAt,
+        ...questionRest
+      } = question;
+
+      return {
+        ...questionRest,
+        options: options.map(({ isCorrect, ...optionRest }) => ({
+          ...optionRest,
+        })),
+        explanation: null,
+        aiSolution: null,
+        aiSolutionGeneratedAt: null,
+      };
+    });
   }
 }

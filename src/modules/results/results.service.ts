@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Attempt } from '../attempts/entities/attempt.entity';
@@ -131,6 +135,10 @@ export class ResultsService {
 
     if (!attempt) {
       throw new NotFoundException('Attempt not found');
+    }
+
+    if (attempt.status !== AttemptStatus.COMPLETED) {
+      throw new BadRequestException('Attempt not completed yet');
     }
 
     const responseMap = new Map(
