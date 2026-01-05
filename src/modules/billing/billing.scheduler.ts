@@ -21,7 +21,7 @@ export class BillingSchedulerService {
     private readonly userRepo: Repository<User>,
     private readonly billingService: BillingService,
   ) {}
-
+  //revisar essa disgraça aq dps da release do abacate pay!!
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async expireOverdueSubscriptions() {
     const now = new Date();
