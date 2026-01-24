@@ -121,6 +121,8 @@ DATABASE_PORT=5432
 DATABASE_USER=postgres
 DATABASE_PASSWORD=postgres
 DATABASE_NAME=pressum
+DATABASE_URL=postgres://user:pass@host:5432/db
+DATABASE_SSL=false
 DB_SYNCHRONIZE=false
 DB_LOGGING=false
 
@@ -146,7 +148,7 @@ HOST=0.0.0.0
 ## Execução Local
 1) `npm install`
 2) Migrations:  
-   `npx typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts`
+   `npm run migration:run`
 3) Seeds: `npm run seed` (planos + simulados de exemplo)
 4) Dev: `npm run start:dev` (porta 3001)
 

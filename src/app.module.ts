@@ -26,6 +26,10 @@ import { AiChatModule } from './modules/ai-chat/ai-chat.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const databaseUrl = configService.get<string>('DATABASE_URL');
+        const sslEnabled =
+          configService.get<string>('DATABASE_SSL', 'false') === 'true' ||
+          (databaseUrl ? databaseUrl.includes('sslmode=require') : false);
+        const ssl = sslEnabled ? { rejectUnauthorized: false } : undefined;
 
         const baseOptions = {
           type: 'postgres' as const,
@@ -33,6 +37,7 @@ import { AiChatModule } from './modules/ai-chat/ai-chat.module';
           synchronize:
             configService.get<string>('DB_SYNCHRONIZE', 'false') === 'true',
           logging: configService.get<string>('DB_LOGGING', 'false') === 'true',
+          ssl,
         };
 
         if (databaseUrl) {
