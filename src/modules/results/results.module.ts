@@ -6,11 +6,13 @@ import { AttemptResponse } from '../attempts/entities/attempt-response.entity';
 import { ResultsService } from './results.service';
 import { ResultsController } from './results.controller';
 import { UsersModule } from '../users/users.module';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Attempt, AttemptResult, AttemptResponse]),
     UsersModule,
+    MetricsModule,
   ],
   providers: [ResultsService],
   controllers: [ResultsController],

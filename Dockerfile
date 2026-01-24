@@ -13,19 +13,25 @@ FROM deps AS builder
 COPY . .
 RUN npm run build
 
-# Production dependencies only
-FROM base AS prod-deps
-WORKDIR /app
-COPY package*.json ./
+# Production dependencies only (built with native tooling available)
+FROM deps AS prod-deps
 RUN npm ci --omit=dev
 
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3001
 
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY package*.json ./
+RUN chown -R node:node /app
+USER node
+
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --chown=node:node package*.json ./
 
 EXPOSE 3001
-CMD ["npm", "run", "start:prod"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "const http=require('http');const port=process.env.PORT||3001;const req=http.request({host:'127.0.0.1',port,path:'/health',timeout:4000},res=>{res.statusCode===200?process.exit(0):process.exit(1);});req.on('error',()=>process.exit(1));req.end();"
+
+CMD ["node", "dist/main.js"]

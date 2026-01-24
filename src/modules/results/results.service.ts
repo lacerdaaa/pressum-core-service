@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
   Injectable,
@@ -20,6 +19,7 @@ import { AttemptStatus } from '../../common/enums/attempt-status.enum';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { QuestionType } from '../../common/enums/exam.enum';
 import { AiInsightsPayload } from '../../common/interfaces/ai-insights.interface';
+import { MetricsService } from '../metrics/metrics.service';
 
 @Injectable()
 export class ResultsService {
@@ -29,6 +29,7 @@ export class ResultsService {
     @InjectRepository(AttemptResult)
     private readonly resultsRepository: Repository<AttemptResult>,
     private readonly usersService: UsersService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   async generateAttemptResult(
@@ -90,6 +91,8 @@ export class ResultsService {
     const savedResult = await this.resultsRepository.save(result);
 
     await this.updateUserMetrics(attempt.user.id, savedResult);
+    // fire-and-forget metrics aggregation
+    void this.metricsService.handleAttemptCompleted(attempt, this.buildPayload(attempt, savedResult));
 
     return this.buildPayload(attempt, savedResult);
   }
@@ -188,7 +191,11 @@ export class ResultsService {
     const history = items.map((attempt) => ({
       attemptId: attempt.id,
       simuladoTitle: attempt.exam.title,
-      percentage: attempt.result?.percentage ?? 0,
+      percentage:
+        attempt.result?.percentage ??
+        (attempt.result?.totalQuestions
+          ? (attempt.result.totalScore / attempt.result.totalQuestions) * 100
+          : 0),
       submittedAt: attempt.submittedAt,
     }));
 
